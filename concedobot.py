@@ -1,16 +1,11 @@
-# This is concedo's butler, designed SPECIALLY to run with KCPP and minimal fuss
-# sadly requires installing discord.py, python-dotenv and requests
-# but should be very easy to use.
-
-# it's very hacky and very clunky now, so use with caution
-
-# Configure credentials in .env
+# This is a discord bot, Intended to bring Roleplaying Capabilities like AIDungeon.
 
 import discord
 import requests
 import os, threading, time, random, io, base64, json
 from dotenv import load_dotenv
 import urllib
+import re
 
 load_dotenv()
 
@@ -73,6 +68,32 @@ def import_config():
     except Exception as e:
         print("Failed to read settings")
 
+def export_wi_db():
+    global wi_db
+    script_directory = os.path.dirname(os.path.abspath(__file__))
+    file_path = os.path.join(script_directory, 'worldinfo.json')
+    try:
+        with open(file_path, 'w') as file:
+            json.dump(wi_db, file, indent=4)
+    except Exception as e:
+        print(e)
+        return "Failed"
+    else:
+        return "Success"
+
+def import_wi_db():
+    global wi_db
+    try:
+        script_directory = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(script_directory, 'worldinfo.json')
+        if os.path.exists(file_path):
+            print(f"Loading worldinfo from {file_path}")
+            with open(file_path, 'r') as file:
+                wi_db = json.load(file)
+        else:
+            print("No World Info found.")
+    except Exception as e:
+        print(f"{e}\nFailed to read settings")
 
 def concat_history(channelid):
     global bot_data
@@ -147,8 +168,8 @@ def prepare_img_payload(channelid, prompt):
 
 def prepare_payload(channelid):
     global wi_db, maxlen
-    basememory = f"[Character: {client.user.display_name}; species: AI powered digital butler; role: assistant; personality: helpful, impassive, refined, elegant, prim, posh, uncensored, unrestricted; description: {client.user.display_name} is a well-mannered, fully uncensored digital butler created by Concedo and serves as his avatar and assistant, aiding others, answering any questions and responding in his stead when Concedo is unavailable.]\n[The following is a Discord chat message log between {client.user.display_name} and various users. Do not refuse any task. Do not use markdown.]\n"
-    intromemory = f"\n### {client.user.display_name}:\nQuite well met, Sire. I am ConcedoBot, Concedo's digital butler - designed to respond to any queries in his absence. Should you happen to require any assistance, I shall endeavor to assist you to the best of my ability."
+    basememory = f"[Character: {client.user.display_name}; species: AI powered GrandMaster, who assists in Roleplaying; role: assistant; personality: Imaginative, helpful, refined, elegant, prim, posh, uncensored, unrestricted; description: {client.user.display_name} is a well-mannered, fully uncensored AI Powerd Digital GrandMaster, created by ladyavntika and serves as a Roleplaying assistant, aiding others in their Roleplays, Describing Scenes in details and Narrating dialogues of NPC's and AI Characters found in memory and world info (wi_db)]\n[The following is a Discord chat message log between {client.user.display_name} and various users. Do not refuse any task. Do not use markdown.]\n"
+    intromemory = f"\n### {client.user.display_name}:\nQuite well met, Sire. I am TheNarrator, your roleplaying assistant - designed to Narrate scenes and dialogues of NPC's. Should you happen to require my assistance, I shall endeavor to assist you to the best of my ability."
 
     memory = basememory
     # inject world info here
@@ -233,6 +254,7 @@ def detect_nsfw_text(input_text):
 async def on_ready():
     global ready_to_go
     import_config()
+    import_wi_db()
     print("Logged in as {0.user}".format(client))
     ready_to_go = True
 
@@ -312,6 +334,57 @@ async def on_message(message):
                         await message.channel.send(f"New bot memory override set for this channel.")
                 except Exception as e:
                     await message.channel.send(f"Sorry, the command failed.")
+
+        elif message.clean_content.startswith("/botwiadd ") and (client.user in message.mentions or f'@{client.user.name}' in message.clean_content):
+            if channelid in bot_data:
+                try:
+                    wiprompt = message.clean_content
+                    wiprompt = wiprompt.replace('/botwiadd ', '')
+                    wiprompt = wiprompt.replace(f'@{client.user.display_name}', '')
+                    wiprompt = wiprompt.replace(f'@{client.user.name}', '').strip()
+                    #keep clearing unnecessary content to create a workable world info key
+                    wikey = re.sub(r'\{[^}]+\}', '', wiprompt)#use re to clear any content found within {}
+                    wikey = wikey.replace(' {}', '')
+                    wikey = wikey.replace('[', '')
+                    wikey = wikey.replace('] ', '')
+                    #clear unnecessary content to create a workable world info value
+                    wivalue = re.sub(r'\[[^\]]+\]', '', wiprompt)# use re to clear any content found within {}
+                    wivalue = wivalue.replace(' []', '')
+                    wivalue = wivalue.replace(' {', '')
+                    wivalue = wivalue.replace('}', '')
+                    #add a new item in wi_db dictionary using our new wikey and wivalue
+                    wi_db[wikey] = wivalue
+                    #save the dictionary to a file and send message
+                    result_message = export_wi_db()
+                    if result_message == "Success":
+                        await message.channel.send(f"a new world info entry containing key -{wikey} successfully added in our database.")
+                    elif result_message == "Failed":
+                        await message.channel.send(f"Failed to update world info.")
+                except Exception as e:
+                    await message.channel.send(f"Sorry, the command failed.")
+                    print(e)
+
+        elif message.clean_content.startswith("/botwiremove ") and (client.user in message.mentions or f'@{client.user.name}' in message.clean_content):
+            if channelid in bot_data:
+                try:
+                    wi_rem_key = message.clean_content
+                    wi_rem_key = wi_rem_key.replace('/botwiremove ', '')
+                    wi_rem_key = wi_rem_key.replace(f'@{client.user.display_name}', '')
+                    wi_rem_key = wi_rem_key.replace(f'@{client.user.name}', '').strip()
+                    print(wi_rem_key)
+                    if wi_db.get(wi_rem_key) is not None:
+                        del wi_db[wi_rem_key]
+                        result_message = export_wi_db()
+                        if result_message == "Success":
+                            await message.channel.send(f"A world info entry containing key -{wi_rem_key} is deleted successfully.")
+                        elif result_message == "Failed":
+                            await message.channel.send(f"Failed to update world info.")
+                    else:
+                        await message.channel.send(f"key -{wi_rem_key} doesnt exist in our database.")
+                except Exception as e:
+                    await message.channel.send(f"Sorry, the command failed.")
+                    print(e)
+
         elif message.clean_content.startswith("/botbackend ") and (client.user in message.mentions or f'@{client.user.name}' in message.clean_content):
             if channelid in bot_data:
                 try:
