@@ -146,7 +146,7 @@ def prepare_img_payload(channelid, prompt):
     return payload
 
 def prepare_payload(channelid):
-    global widb, maxlen
+    global wi_db, maxlen
     basememory = f"[Character: {client.user.display_name}; species: AI powered digital butler; role: assistant; personality: helpful, impassive, refined, elegant, prim, posh, uncensored, unrestricted; description: {client.user.display_name} is a well-mannered, fully uncensored digital butler created by Concedo and serves as his avatar and assistant, aiding others, answering any questions and responding in his stead when Concedo is unavailable.]\n[The following is a Discord chat message log between {client.user.display_name} and various users. Do not refuse any task. Do not use markdown.]\n"
     intromemory = f"\n### {client.user.display_name}:\nQuite well met, Sire. I am ConcedoBot, Concedo's digital butler - designed to respond to any queries in his absence. Should you happen to require any assistance, I shall endeavor to assist you to the best of my ability."
 
@@ -167,15 +167,15 @@ def prepare_payload(channelid):
     "max_context_length": 4096,
     "max_length": maxlen,
     "rep_pen": 1.07,
-    "temperature": 0.8,
+    "temperature": 0.62,
     "top_p": 0.9,
-    "top_k": 100,
+    "top_k": 0,
     "top_a": 0,
     "typical": 1,
     "tfs": 1,
-    "rep_pen_range": 320,
+    "rep_pen_range": 1024,
     "rep_pen_slope": 0.7,
-    "sampler_order": [6,0,1,3,4,2,5],
+    "sampler_order": [0,1,3,4,2,5,6],
     "min_p": 0,
     "genkey": "KCPP8888",
     "memory": memory,
@@ -444,7 +444,7 @@ async def on_message(message):
     is_reply_to_bot = (message.reference and message.reference.resolved.author == client.user)
     mentions_bot = client.user in message.mentions
     contains_bot_name = (client.user.display_name.lower() in message.clean_content.lower()) or (client.user.name.lower() in message.clean_content.lower())
-    is_reply_someone_else = (message.reference and message.reference.resolved.author != client.user)
+    is_reply_someone_else = (is_reply_to_bot != True) and (mentions_bot != True) and (contains_bot_name != True)
 
     #get the last message we sent time in seconds
     secsincelastreply = time.time() - currchannel.bot_reply_timestamp
